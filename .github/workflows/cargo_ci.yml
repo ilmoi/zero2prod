@@ -1,0 +1,36 @@
+name: cargo CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+# each job executes on a diff runner, but all steps within the job on the same runner
+# by default run in parallel
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    # step can be an "action" (uses) or a shell command (run)
+    # actions can be community-owner or my own
+    steps:
+
+    - run: echo ${{ secrets.YAY }}
+
+    - uses: actions/checkout@v2 #retrieve v2 of the community action "checkout". this particular one MUST be used whenever running code against the repo
+
+    - uses: actions-rs/toolchain@v1 #get stable rust onto system
+      with:
+        toolchain: stable
+
+    # should run like below instead of directly "run cargo" as per benefits listed in https://github.com/actions-rs/cargo
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --all-features
+
