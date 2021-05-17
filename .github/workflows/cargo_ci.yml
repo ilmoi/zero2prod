@@ -27,7 +27,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: output-yay
-#        path: output.logs
+        path: output.logs
 
     - uses: actions/checkout@v2 #retrieve v2 of the community action "checkout". this particular one MUST be used whenever running code against the repo
 
