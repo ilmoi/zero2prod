@@ -20,7 +20,9 @@ jobs:
     # actions can be community-owner or my own
     steps:
 
-    - run: echo ${{ secrets.YAY }}
+    - run: echo "$env:supersecret" "%supersecret%"
+      env:
+        supersecret: ${{ secrets.YAY }}
 
     - uses: actions/checkout@v2 #retrieve v2 of the community action "checkout". this particular one MUST be used whenever running code against the repo
 
