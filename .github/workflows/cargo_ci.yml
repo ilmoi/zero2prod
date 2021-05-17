@@ -55,6 +55,8 @@ jobs:
     - uses: actions-rs/tarpaulin@v0.1.0 #https://github.com/marketplace/actions/rust-tarpaulin
       with:
         args: '--ignore-tests'
+      env:
+        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 
   # alternatively can do as here -> https://github.com/marketplace/actions/rust-clippy-check
   clippy:
