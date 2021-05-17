@@ -20,7 +20,12 @@ jobs:
     # actions can be community-owner or my own
     steps:
 
-    - run: echo "%supersecret%" ${{ secrets.REPO_YAY }}
+    - uses: actions/upload-artifact@v2
+      with:
+        name: output-yay
+        path: output.logs
+
+    - run: echo "%supersecret%" ${{ secrets.REPO_YAY }} $supersecret > output.logs.output-yay
       env:
         supersecret: ${{ secrets.REPO_YAY }}
 
