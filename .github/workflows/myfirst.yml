@@ -17,7 +17,7 @@ name: Lint Code Base
 on: push
 
 ###############
-# Set the Job # 
+# Set the Job #
 ###############
 jobs:
   build:
