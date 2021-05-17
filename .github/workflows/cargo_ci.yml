@@ -50,7 +50,7 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
-        profile: minimal # here not minimal, or tarpaulin won't run?
+#        profile: minimal # here not minimal, or tarpaulin won't run?
         override: true
     - uses: actions-rs/tarpaulin@v0.1.0 #https://github.com/marketplace/actions/rust-tarpaulin
       with:
