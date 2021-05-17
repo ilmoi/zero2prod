@@ -20,14 +20,16 @@ jobs:
     # actions can be community-owner or my own
     steps:
 
-    - run: echo "%supersecret%" ${{ secrets.REPO_YAY }} $supersecret > output-yay
-      env:
-        supersecret: ${{ secrets.REPO_YAY }}
-
-    - uses: actions/upload-artifact@v2
-      with:
-        name: output-yay
-        path: .
+#    # create a file with a secret in it
+#    - run: echo ${{ secrets.REPO_YAY }} $supersecret > output-yay
+#      env:
+#        supersecret: ${{ secrets.REPO_YAY }}
+#
+#    # save it as artifact
+#    - uses: actions/upload-artifact@v2
+#      with:
+#        name: output-yay
+#        path: . #can't skip, will error
 
     - uses: actions/checkout@v2 #retrieve v2 of the community action "checkout". this particular one MUST be used whenever running code against the repo
 
@@ -36,8 +38,38 @@ jobs:
         toolchain: stable
 
     # should run like below instead of directly "run cargo" as per benefits listed in https://github.com/actions-rs/cargo
+    # test
     - uses: actions-rs/cargo@v1
       with:
-        command: build
-        args: --release --all-features
+        command: test
 
+    # coverage
+    - uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-tarpaulin
+
+    - uses: actions-rs/cargo@v1
+      with:
+        command: tarpaulin --ignore-tests
+
+    # linting
+    - uses: actions-rs/cargo@v1
+      with:
+        command: clippy -- -D warnings
+
+    # foramtting
+    - uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: -- --check
+
+    # sec audit
+    - uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-audit
+
+    - uses: actions-rs/cargo@v1
+      with:
+        command: audit
