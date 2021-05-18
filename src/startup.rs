@@ -5,8 +5,7 @@ use actix_web::{web, App, HttpServer};
 
 use crate::routes::health_check;
 use crate::routes::subscribe;
-use sqlx::{PgConnection, PgPool};
-use std::sync::Arc;
+use sqlx::PgPool;
 
 //return a server, blocking
 // pub async fn run() -> std::io::Result<()> {

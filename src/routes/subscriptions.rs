@@ -1,8 +1,6 @@
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
-use sqlx::{PgConnection, PgPool};
-use std::ops::Deref;
-use std::sync::Arc;
+use sqlx::PgPool;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
