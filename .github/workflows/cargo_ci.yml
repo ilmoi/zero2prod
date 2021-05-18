@@ -12,21 +12,21 @@ env:
 # each job executes on a diff runner, but all steps within the job on the same runner
 # by default run in parallel
 jobs:
-#  echo:
-#    runs-on: ubuntu-latest
-#    # step can be an "action" (uses) or a shell command (run)
-#    # actions can be community-owner or my own
-#    steps:
-#    # create a file with a secret in it
-#    - run: echo ${{ secrets.REPO_YAY }} $supersecret > output-yay
-#      env:
-#        supersecret: ${{ secrets.REPO_YAY }}
-#
-#    # save it as artifact
-#    - uses: actions/upload-artifact@v2
-#      with:
-#        name: output-yay
-##        path: . #can't skip, will error
+  #  echo:
+  #    runs-on: ubuntu-latest
+  #    # step can be an "action" (uses) or a shell command (run)
+  #    # actions can be community-owner or my own
+  #    steps:
+  #    # create a file with a secret in it
+  #    - run: echo ${{ secrets.REPO_YAY }} $supersecret > output-yay
+  #      env:
+  #        supersecret: ${{ secrets.REPO_YAY }}
+  #
+  #    # save it as artifact
+  #    - uses: actions/upload-artifact@v2
+  #      with:
+  #        name: output-yay
+  ##        path: . #can't skip, will error
 
   test:
     name: test
@@ -41,41 +41,64 @@ jobs:
         ports:
           - 5432:5432
     steps:
-    - uses: actions/checkout@v2 #retrieve v2 of the community action "checkout". this particular one MUST be used whenever running code against the repo
-    - uses: actions-rs/toolchain@v1 #get stable rust onto system
-      with:
-        toolchain: stable
-        profile: minimal #speed up by installing only the min required
-        override: true #override existing installation
-    - name: Migrate database
-      run: |
-        sudo apt-get install libpq-dev -y
-        cargo install --locked --version=0.5.1 sqlx-cli --no-default-features --features postgres
-        SKIP_DOCKER=true ./scripts/init_db.sh
-    - uses: actions-rs/cargo@v1 # run cargo like this instead of directly "run cargo" - benefits listed in https://github.com/actions-rs/cargo
-      with:
-        command: test
+      - uses: actions/checkout@v2 #retrieve v2 of the community action "checkout". this particular one MUST be used whenever running code against the repo
+      - uses: actions-rs/toolchain@v1 #get stable rust onto system
+        with:
+          toolchain: stable
+          profile: minimal #speed up by installing only the min required
+          override: true #override existing installation
+      - name: Migrate database
+        run: |
+          sudo apt-get install libpq-dev -y
+          cargo install --locked --version=0.5.1 sqlx-cli --no-default-features --features postgres
+          SKIP_DOCKER=true ./scripts/init_db.sh
+      - uses: actions-rs/cargo@v1 # run cargo like this instead of directly "run cargo" - benefits listed in https://github.com/actions-rs/cargo
+        with:
+          command: test
 
   coverage:
     name: coverage
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-        override: true
-    - uses: actions-rs/tarpaulin@v0.1.0 #https://github.com/marketplace/actions/rust-tarpaulin
-      with:
-        args: '--ignore-tests'
-      env:
-        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Migrate database
+        run: |
+          sudo apt-get install libpq-dev -y
+          cargo install --version=0.5.1 sqlx-cli --no-default-features --features postgres
+          SKIP_DOCKER=true ./scripts/init_db.sh
+      - uses: actions-rs/tarpaulin@v0.1.0 #https://github.com/marketplace/actions/rust-tarpaulin
+        with:
+          args: '--ignore-tests'
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 
   # alternatively can do as here -> https://github.com/marketplace/actions/rust-clippy-check
   clippy:
     name: clippy
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -83,6 +106,11 @@ jobs:
           toolchain: stable
           override: true
           components: clippy
+      - name: Migrate database
+        run: |
+          sudo apt-get install libpq-dev -y
+          cargo install --locked --version=0.5.1 sqlx-cli --no-default-features --features postgres
+          SKIP_DOCKER=true ./scripts/init_db.sh
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
