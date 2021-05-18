@@ -1,0 +1,13 @@
+POST http://localhost:8000/subscriptions
+Content-Type: application/x-www-form-urlencoded
+
+name=le%20guin&email=ursula2_le_guin%40gmail.com
+
+
+###
+
+
+GET http://localhost:8000/health_check
+
+
+###

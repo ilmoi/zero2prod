@@ -21,3 +21,19 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
     //try to convert the above file into the above struct
     settings.try_into()
 }
+
+impl DatabaseSettings {
+    pub fn connection_string(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}/{}",
+            self.username, self.password, self.host, self.port, self.database_name
+        )
+    }
+    //this will be used for tests - we want to connect to pg instance in general, not to a particular db
+    pub fn connection_string_without_db(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}",
+            self.username, self.password, self.host, self.port
+        )
+    }
+}

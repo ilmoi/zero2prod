@@ -5,6 +5,8 @@ use actix_web::{web, App, HttpServer};
 
 use crate::routes::health_check;
 use crate::routes::subscribe;
+use sqlx::{PgConnection, PgPool};
+use std::sync::Arc;
 
 //return a server, blocking
 // pub async fn run() -> std::io::Result<()> {
@@ -37,11 +39,21 @@ use crate::routes::subscribe;
 // }
 
 // now using a listener
-pub fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
-    let server = HttpServer::new(|| {
+pub fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::Error> {
+    //we need connection to be cloneable to spin up multiple copies of App, one for each core on our machine
+    // let connection = Arc::new(connection);
+
+    //wrap the pool using web::Data, which under the hood is an Arc smart pointer
+    let db_pool = web::Data::new(db_pool);
+
+    let server = HttpServer::new(move || {
         App::new()
             .route("/health_check", web::get().to(health_check))
             .route("/subscriptions", web::post().to(subscribe))
+            //add state to our application - note .data wraps inside of Arc::new()
+            // .data(connection.clone())
+            //with pg_pool instead of connection we're using app_data, coz we don't want Arc::new(Arc::new()) - app_data doesn't perform an additional layer of wrapping
+            .app_data(db_pool.clone())
     })
     .listen(listener)?
     .run();

@@ -1,8 +1,9 @@
 use tokio;
 // use rand::prelude::*;
-use sqlx::{Connection, PgConnection};
+use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::{SocketAddr, TcpListener};
-use zero2prod::config::get_config;
+use uuid::Uuid;
+use zero2prod::config::{get_config, DatabaseSettings};
 
 // -----------------------------------------------------------------------------
 
@@ -12,14 +13,14 @@ use zero2prod::config::get_config;
 #[actix_rt::test] //replaces 1)actix_web, 2)test directives
 async fn health_check_works() {
     //instantiate our server, concurrently
-    let addr = spawn_app();
+    let test_app = spawn_app().await;
 
     //instantiate a client
     let client = reqwest::Client::new();
 
     //execute an api call
     let response = client
-        .get(format!("http://{}/health_check", addr))
+        .get(format!("http://{}/health_check", test_app.address))
         .send()
         .await
         .expect("failed to call api");
@@ -28,13 +29,59 @@ async fn health_check_works() {
     assert_eq!(Some(0), response.content_length());
 }
 
-fn spawn_app() -> SocketAddr {
-    //generate full address
-    let addr = gen_addr();
-    let listener = TcpListener::bind(addr).expect("failed to bind");
-    let server = zero2prod::startup::run(listener).expect("failed to find address");
+struct TestApp {
+    address: String,
+    db_pool: PgPool,
+}
+
+async fn configure_database(config: &DatabaseSettings) -> PgPool {
+    //create one-off database for testing
+    //first we connect without specifying db name and we simply create a new database
+    let mut connection = PgConnection::connect(&config.connection_string_without_db())
+        .await
+        .expect("failed to connect to db");
+    connection
+        .execute(&*format!(r#"CREATE DATABASE "{}";"#, config.database_name))
+        .await
+        .expect("failed to create db");
+
+    //then we migrate it using the macro
+    let mut connection_pool = PgPool::connect(&config.connection_string())
+        .await
+        .expect("failed to connect to db");
+    sqlx::migrate!("./migrations")
+        .run(&connection_pool)
+        .await
+        .expect("failed to migrate db");
+
+    //note that we're not cleaning up anywhere - it's easier to restart our postgres instance than to delete all the dbs
+
+    connection_pool
+}
+
+async fn spawn_app() -> TestApp {
+    // create psql connection
+    let mut config = get_config().expect("failed to load config");
+    config.database.database_name = Uuid::new_v4().to_string();
+    let connection_pool = configure_database(&config.database).await;
+
+    // generate full address
+    //0 port let's the OS assign a random free port
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to assign a port");
+    //get the address that was assigned
+    let port = listener.local_addr().unwrap().port();
+    let addr = format! {"127.0.0.1:{}", port};
+    println!("randomly generated addr is {}", addr);
+
+    // create the server
+    let server =
+        zero2prod::startup::run(listener, connection_pool.clone()).expect("failed to find address");
     let _ = tokio::spawn(server);
-    addr
+
+    TestApp {
+        address: addr,
+        db_pool: connection_pool,
+    }
 }
 
 //using rand
@@ -46,28 +93,19 @@ fn spawn_app() -> SocketAddr {
 //     addr
 // }
 
-fn gen_addr() -> SocketAddr {
-    //0 port let's the OS assign a random free port
-    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to assign a port");
-    //get the address that was assigned
-    let addr = listener.local_addr().unwrap();
-    println!("randomly generated addr is {}", addr);
-    addr
-}
-
 // -----------------------------------------------------------------------------
 
 #[actix_rt::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
     // spawn app
-    let app_address = spawn_app();
+    let test_app = spawn_app().await;
 
     // test route
     let client = reqwest::Client::new();
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
 
     let response = client
-        .post(&format!("http://{}/subscriptions", &app_address))
+        .post(&format!("http://{}/subscriptions", test_app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
@@ -75,29 +113,13 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         .expect("Failed to execute request.");
     assert_eq!(200, response.status().as_u16());
 
-    // -----------------------------------------------------------------------------
-
-    // create psql connection
-    let config = get_config().expect("failed to load config");
-    let conn_str = format!(
-        "postgres://{}:{}@{}:{}/{}",
-        config.database.username,
-        config.database.password,
-        config.database.host,
-        config.database.port,
-        config.database.database_name
-    );
-    let mut connection = PgConnection::connect(&conn_str)
-        .await
-        .expect("failed to connect to db");
-
     //test psql
     let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
-        .fetch_one(&mut connection)
+        .fetch_one(&test_app.db_pool)
         .await
         .expect("failed to fetch subscription");
 
-    assert_eq!(saved.email, "urusula_le_guin@gmail.com");
+    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
     assert_eq!(saved.name, "le guin");
 }
 
@@ -105,7 +127,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 #[actix_rt::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
     // Arrange
-    let app_address = spawn_app();
+    let test_app = spawn_app().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),
@@ -115,7 +137,7 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
     for (invalid_body, error_message) in test_cases {
         // Act
         let response = client
-            .post(&format!("http://{}/subscriptions", &app_address))
+            .post(&format!("http://{}/subscriptions", test_app.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(invalid_body)
             .send()
