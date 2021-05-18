@@ -1,8 +1,8 @@
 use tokio;
 // use rand::prelude::*;
-use std::net::{TcpListener, SocketAddr};
+use sqlx::{Connection, PgConnection};
+use std::net::{SocketAddr, TcpListener};
 use zero2prod::config::get_config;
-use sqlx::{PgConnection, Connection};
 
 // -----------------------------------------------------------------------------
 
@@ -79,12 +79,14 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 
     // create psql connection
     let config = get_config().expect("failed to load config");
-    let conn_str = format!("postgres://{}:{}@{}:{}/{}",
-                           config.database.username,
-                           config.database.password,
-                           config.database.host,
-                           config.database.port,
-                           config.database.database_name);
+    let conn_str = format!(
+        "postgres://{}:{}@{}:{}/{}",
+        config.database.username,
+        config.database.password,
+        config.database.host,
+        config.database.port,
+        config.database.database_name
+    );
     let mut connection = PgConnection::connect(&conn_str)
         .await
         .expect("failed to connect to db");
@@ -102,13 +104,13 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 // "table-driven" = "parametrised" test
 #[actix_rt::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
-// Arrange
+    // Arrange
     let app_address = spawn_app();
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),
         ("email=ursula_le_guin%40gmail.com", "missing the name"),
-        ("", "missing both name and email")
+        ("", "missing both name and email"),
     ];
     for (invalid_body, error_message) in test_cases {
         // Act
@@ -119,11 +121,11 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
             .send()
             .await
             .expect("Failed to execute request.");
-// Assert
+        // Assert
         assert_eq!(
             400,
             response.status().as_u16(),
-// Additional customised error message on test failure
+            // Additional customised error message on test failure
             "The API did not fail with 400 Bad Request when the payload was {}.",
             error_message
         );

@@ -6,7 +6,6 @@ use actix_web::HttpResponse;
 //     format!("Hello {}\n", name)
 // }
 
-
 pub async fn health_check() -> HttpResponse {
     HttpResponse::Ok().finish()
 }
