@@ -31,6 +31,15 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
     steps:
     - uses: actions/checkout@v2 #retrieve v2 of the community action "checkout". this particular one MUST be used whenever running code against the repo
     - uses: actions-rs/toolchain@v1 #get stable rust onto system
@@ -38,6 +47,11 @@ jobs:
         toolchain: stable
         profile: minimal #speed up by installing only the min required
         override: true #override existing installation
+    - name: Migrate database
+      run: |
+        sudo apt-get install libpq-dev -y
+        cargo install --version=0.5.1 sqlx-cli --no-default-features --features postgres
+        SKIP_DOCKER=true ./scripts/init_db.sh
     - uses: actions-rs/cargo@v1 # run cargo like this instead of directly "run cargo" - benefits listed in https://github.com/actions-rs/cargo
       with:
         command: test
@@ -50,7 +64,7 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
-        profile: minimal # here not minimal, or tarpaulin won't run?
+        profile: minimal
         override: true
     - uses: actions-rs/tarpaulin@v0.1.0 #https://github.com/marketplace/actions/rust-tarpaulin
       with:
