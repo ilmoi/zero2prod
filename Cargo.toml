@@ -23,6 +23,14 @@ serde = { version = "1.0", features = ["derive"] }
 config = "0.11.0"
 uuid = { version = "0.8.1", features = ["v4"] }
 chrono = "0.4.15"
+env_logger = "0.8.3"
+log = "0.4.14"
+tracing = { version = "0.1", features = ["log"] } #normal tracing
+tracing-futures = "0.2.5" #tracing for async stuff
+tracing-subscriber = { version = "0.2.12", features = ["registry", "env-filter"] } #equivalent of set_logger for tracing
+tracing-bunyan-formatter = "0.2.4" #formatter for the subscriber
+tracing-log = "0.1.2" #capture logs emitted by actix's middleware
+tracing-actix-web = "0.4.0-beta.4"
 
 # Using table-like toml syntax to avoid a super-long line!
 [dependencies.sqlx]
@@ -39,4 +47,5 @@ features = [
 
 [dev-dependencies]
 actix-rt = "2"
+once_cell = "1.7.2"
 reqwest = "0.11"

@@ -1,9 +1,11 @@
 use tokio;
 // use rand::prelude::*;
+use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
-use std::net::{SocketAddr, TcpListener};
+use std::net::TcpListener;
 use uuid::Uuid;
 use zero2prod::config::{get_config, DatabaseSettings};
+use zero2prod::telem::{get_subscriber, init_subscriber};
 
 // -----------------------------------------------------------------------------
 
@@ -46,7 +48,7 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("failed to create db");
 
     //then we migrate it using the macro
-    let mut connection_pool = PgPool::connect(&config.connection_string())
+    let connection_pool = PgPool::connect(&config.connection_string())
         .await
         .expect("failed to connect to db");
     sqlx::migrate!("./migrations")
@@ -59,7 +61,22 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
     connection_pool
 }
 
+//this is so that our subscriber is only initialized once
+//this also hides the test logs unless we enable them back on with TEST_LOG=true
+static TRACING: Lazy<()> = Lazy::new(|| {
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = get_subscriber("test".into(), "debug".into(), std::io::stdout);
+        init_subscriber(subscriber);
+    } else {
+        let subscriber = get_subscriber("test".into(), "debug".into(), std::io::sink);
+        init_subscriber(subscriber);
+    }
+});
+
 async fn spawn_app() -> TestApp {
+    // init the subscriber ONCE
+    Lazy::force(&TRACING);
+
     // create psql connection
     let mut config = get_config().expect("failed to load config");
     config.database.database_name = Uuid::new_v4().to_string();

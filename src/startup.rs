@@ -2,10 +2,42 @@ use std::net::TcpListener;
 
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
+use sqlx::PgPool;
+use tracing_actix_web::TracingLogger;
 
 use crate::routes::health_check;
+use crate::routes::rename;
 use crate::routes::subscribe;
-use sqlx::PgPool;
+
+// now using a listener
+pub fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::Error> {
+    //we need connection to be cloneable to spin up multiple copies of App, one for each core on our machine
+    // let connection = Arc::new(connection);
+
+    //wrap the pool using web::Data, which under the hood is an Arc smart pointer
+    let db_pool = web::Data::new(db_pool);
+
+    let server = HttpServer::new(move || {
+        App::new()
+            //LOGGING
+            // .wrap(Logger::default())
+            //TRACING
+            .wrap(TracingLogger::default()) // this lets us track request_id all the way from request start to end, not only in functions we labeled in subscriptions.rs. It's designed as a drop in replacement for the above logger
+            //ROUTES
+            .route("/health_check", web::get().to(health_check))
+            .route("/subscriptions", web::post().to(subscribe))
+            .route("/rename", web::post().to(rename))
+            //APP STATE
+            //note .data wraps inside of Arc::new()
+            // .data(connection.clone())
+            //with pg_pool instead of connection we're using app_data, coz we don't want Arc::new(Arc::new()) - app_data doesn't perform an additional layer of wrapping
+            .app_data(db_pool.clone())
+    })
+    .listen(listener)?
+    .run();
+    //no more await!
+    Ok(server)
+}
 
 //return a server, blocking
 // pub async fn run() -> std::io::Result<()> {
@@ -36,26 +68,3 @@ use sqlx::PgPool;
 //     //no more await!
 //     Ok(server)
 // }
-
-// now using a listener
-pub fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::Error> {
-    //we need connection to be cloneable to spin up multiple copies of App, one for each core on our machine
-    // let connection = Arc::new(connection);
-
-    //wrap the pool using web::Data, which under the hood is an Arc smart pointer
-    let db_pool = web::Data::new(db_pool);
-
-    let server = HttpServer::new(move || {
-        App::new()
-            .route("/health_check", web::get().to(health_check))
-            .route("/subscriptions", web::post().to(subscribe))
-            //add state to our application - note .data wraps inside of Arc::new()
-            // .data(connection.clone())
-            //with pg_pool instead of connection we're using app_data, coz we don't want Arc::new(Arc::new()) - app_data doesn't perform an additional layer of wrapping
-            .app_data(db_pool.clone())
-    })
-    .listen(listener)?
-    .run();
-    //no more await!
-    Ok(server)
-}
