@@ -56,35 +56,35 @@ jobs:
         with:
           command: test
 
-  coverage:
-    name: coverage
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:12
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-      - name: Migrate database
-        run: |
-          sudo apt-get install libpq-dev -y
-          cargo install --locked --version=0.5.1 sqlx-cli --no-default-features --features postgres
-          SKIP_DOCKER=true ./scripts/init_db.sh
-      - uses: actions-rs/tarpaulin@v0.1.0 #https://github.com/marketplace/actions/rust-tarpaulin
-        with:
-          args: '--ignore-tests'
-        env:
-          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+#  coverage:
+#    name: coverage
+#    runs-on: ubuntu-latest
+#    services:
+#      postgres:
+#        image: postgres:12
+#        env:
+#          POSTGRES_USER: postgres
+#          POSTGRES_PASSWORD: password
+#          POSTGRES_DB: postgres
+#        ports:
+#          - 5432:5432
+#    steps:
+#      - uses: actions/checkout@v2
+#      - uses: actions-rs/toolchain@v1
+#        with:
+#          toolchain: stable
+#          profile: minimal
+#          override: true
+#      - name: Migrate database
+#        run: |
+#          sudo apt-get install libpq-dev -y
+#          cargo install --locked --version=0.5.1 sqlx-cli --no-default-features --features postgres
+#          SKIP_DOCKER=true ./scripts/init_db.sh
+#      - uses: actions-rs/tarpaulin@v0.1.0 #https://github.com/marketplace/actions/rust-tarpaulin
+#        with:
+#          args: '--ignore-tests'
+#        env:
+#          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 
   # alternatively can do as here -> https://github.com/marketplace/actions/rust-clippy-check
   clippy:
