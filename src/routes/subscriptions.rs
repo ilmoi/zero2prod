@@ -1,12 +1,24 @@
+use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
 use sqlx::PgPool;
+use std::convert::TryInto;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
     pub email: String,
     pub name: String,
+}
+
+//we could have a separate function for this, but this is an "accepted" way of doing conversions
+impl TryInto<NewSubscriber> for FormData {
+    type Error = String;
+    fn try_into(self) -> Result<NewSubscriber, Self::Error> {
+        let name = SubscriberName::parse(String::from(self.name))?;
+        let email = SubscriberEmail::parse(String::from(self.email))?;
+        Ok(NewSubscriber { email, name })
+    }
 }
 
 //we can take out all the tracing logic out of the function and write it out separately, here
@@ -29,23 +41,34 @@ pub async fn subscribe(
     form: web::Form<FormData>,
     pg_pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, HttpResponse> {
-    insert_subscriber(&pg_pool, &form)
+    let new_subscriber = form
+        .0
+        .try_into()
+        .map_err(|_| HttpResponse::BadRequest().finish())?;
+
+    insert_subscriber(&pg_pool, &new_subscriber)
         .await
         .map_err(|_| HttpResponse::InternalServerError().finish())?;
     Ok(HttpResponse::Ok().finish())
 }
 
-#[tracing::instrument(name = "Saving new subscriber details in the db", skip(form, pg_pool))]
+#[tracing::instrument(
+    name = "Saving new subscriber details in the db",
+    skip(pg_pool, new_sub)
+)]
 // takes care of the database logic and has no awareness of the surrounding web framework
-pub async fn insert_subscriber(pg_pool: &PgPool, form: &FormData) -> Result<(), sqlx::Error> {
+pub async fn insert_subscriber(
+    pg_pool: &PgPool,
+    new_sub: &NewSubscriber,
+) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
         VALUES ($1, $2, $3, $4)
         "#,
         Uuid::new_v4(),
-        form.email,
-        form.name,
+        new_sub.email.as_ref(),
+        new_sub.name.as_ref(),
         Utc::now()
     )
     .execute(pg_pool)

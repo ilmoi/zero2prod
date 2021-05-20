@@ -15,7 +15,7 @@ GET http://localhost:8000/health_check
 POST http://localhost:8000/rename
 Content-Type: application/x-www-form-urlencoded
 
-name=le%20guin12312312313&email=ursula_le_guin%40gmail.com
+name=le%20guin99999&email=ursula_le_guin%40gmail.com
 
 
 ###
