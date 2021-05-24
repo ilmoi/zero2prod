@@ -35,3 +35,9 @@ sqlx database create
 sqlx migrate run
 
 >&2 echo "Postgres has been migrated, ready to go!"
+
+# to migrate the database (in terminal):
+# 1) export DATABASE_URL=postgres://postgres:password@localhost:5432/newsletter
+# 2) sqlx migrate add file_to_describe_what_migration_is_doing
+# 3) go into the above file and edit it wiith raw sql
+# 4) sqlx migrate run

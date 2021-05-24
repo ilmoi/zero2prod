@@ -1150,6 +1150,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fb9b38af92608140b86b693604b9ffcc5824240a484d1ecd4795bacb2fe88f3"
 
 [[package]]
+name = "linkify"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78d59d732ba6d7eeefc418aab8057dc8e3da4374bd5802ffa95bebc04b4d1dfb"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "local-channel"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2763,11 +2772,13 @@ dependencies = [
  "actix-rt",
  "actix-service",
  "actix-web",
+ "anyhow",
  "chrono",
  "claim",
  "config 0.11.0",
  "env_logger 0.8.3",
  "fake",
+ "linkify",
  "log",
  "once_cell",
  "quickcheck",
@@ -2778,6 +2789,7 @@ dependencies = [
  "serde-aux",
  "serde_json",
  "sqlx",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-actix-web",

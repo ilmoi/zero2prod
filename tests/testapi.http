@@ -1,7 +1,7 @@
 POST http://localhost:8000/subscriptions
 Content-Type: application/x-www-form-urlencoded
 
-name=le%20guin&email=ursula3_le_guin%40gmail.com
+name=ilja&email=hi%40gpu.land
 
 
 ###
@@ -19,3 +19,31 @@ name=le%20guin99999&email=ursula_le_guin%40gmail.com
 
 
 ###
+
+GET http://127.0.0.1:8000/subscriptions/confirm?sub_token=lKNbHAvyKD4uHdNqZmdJFzgSn
+
+
+###
+
+# curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' --header 'X-Postmark-Server-Token: 9be7c3ae-4cd7-4582-8a1d-0cfdb9f0c402' -d '{
+#  "From": "hi@gpu.land",
+#  "To": "umba3abp@gmail.com",
+#  "Subject": "string",
+#  "HtmlBody": "string",
+#  "TextBody": "string",
+#}' "https://api.postmarkapp.com/email"
+POST https://api.postmarkapp.com/email
+Accept: application/json
+X-Postmark-Server-Token: 9be7c3ae-4cd7-4582-8a1d-0cfdb9f0c402
+Content-Type: application/json
+
+{
+  "From": "hi@gpu.land",
+  "To": "hi@gpu.land",
+  "Subject": "string",
+  "HtmlBody": "string",
+  "TextBody": "string"
+}
+
+###
+

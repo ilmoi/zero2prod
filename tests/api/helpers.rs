@@ -2,6 +2,8 @@ use once_cell::sync::Lazy;
 use sqlx::types::Uuid;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 
+use reqwest::Url;
+use wiremock::MockServer;
 use zero2prod::config::{get_config, DatabaseSettings};
 use zero2prod::startup::{get_connection_pool, Application};
 use zero2prod::telem::{get_subscriber, init_subscriber};
@@ -9,6 +11,8 @@ use zero2prod::telem::{get_subscriber, init_subscriber};
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
+    pub email_server: MockServer,
+    pub port: u16,
 }
 
 async fn configure_database(config: &DatabaseSettings) -> PgPool {
@@ -52,11 +56,14 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING); // init the subscriber ONCE
 
+    let email_server = MockServer::start().await;
+
     //build the config
     let config = {
         let mut c = get_config().expect("failed to load config"); //fetch the config
         c.database.database_name = Uuid::new_v4().to_string(); //invest a new db name
         c.app.port = 0; //change port to 0 for testing (will reassign to random sys port)
+        c.email_client.base_url = email_server.uri();
         c
     };
 
@@ -76,6 +83,8 @@ pub async fn spawn_app() -> TestApp {
         db_pool: get_connection_pool(&config.database)
             .await
             .expect("failed to get connection pool"),
+        email_server,
+        port,
     }
 }
 
@@ -91,5 +100,37 @@ impl TestApp {
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+}
+
+// -----------------------------------------------------------------------------
+// confirmation links
+
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub plain_text: reqwest::Url,
+}
+
+impl TestApp {
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+        //deserialize into a valid json -https://docs.serde.rs/serde_json/enum.Value.html
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+        // Extract the link from one of the request fields.
+        let get_link = |s: &str| {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect();
+            assert_eq!(links.len(), 1);
+            links[0].as_str().to_owned()
+        };
+
+        let html_raw_link = &get_link(&body["HtmlBody"].as_str().unwrap());
+        let text_raw_link = &get_link(&body["HtmlBody"].as_str().unwrap());
+        let html = Url::parse(html_raw_link).unwrap();
+        let plain_text = Url::parse(text_raw_link).unwrap();
+
+        ConfirmationLinks { html, plain_text }
     }
 }

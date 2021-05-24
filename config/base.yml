@@ -7,6 +7,6 @@ database:
   password: "password"
   database_name: "newsletter"
 email_client:
-  base_url: "localhost"
+  base_url: "https://api.postmarkapp.com"
   sender_email: "hi@gpu.land"
   auth_token: "9be7c3ae-4cd7-4582-8a1d-0cfdb9f0c402"

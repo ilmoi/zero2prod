@@ -7,9 +7,9 @@ use tracing_actix_web::TracingLogger;
 
 use crate::config::{DatabaseSettings, Settings};
 use crate::email_client::EmailClient;
-use crate::routes::health_check;
 use crate::routes::rename;
 use crate::routes::subscribe;
+use crate::routes::{confirm, health_check};
 use sqlx::postgres::PgPoolOptions;
 
 pub struct Application {
@@ -40,7 +40,11 @@ impl Application {
         println!("Address is: {}", address);
         let listener = TcpListener::bind(&address)?;
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, connection_pool, email_client)?;
+
+        //todo diff to tutorial material but I couldn'd find how he did it
+        let new_url = format!("{}:{}", config.app.base_url, port);
+
+        let server = run(listener, connection_pool, email_client, new_url)?;
 
         Ok(Self { port, server })
     }
@@ -52,6 +56,8 @@ impl Application {
         self.server.await
     }
 }
+
+pub struct ApplicationBaseUrl(pub String);
 
 pub async fn get_connection_pool(config: &DatabaseSettings) -> Result<PgPool, sqlx::Error> {
     // use pg options instead of string, so that we can enable TLS on db connection
@@ -72,6 +78,7 @@ pub fn run(
     listener: TcpListener,
     db_pool: PgPool,
     email_client: EmailClient,
+    base_url: String,
 ) -> Result<Server, std::io::Error> {
     //we need connection to be cloneable to spin up multiple copies of App, one for each core on our machine
     // let connection = Arc::new(connection);
@@ -90,12 +97,14 @@ pub fn run(
             .route("/health_check", web::get().to(health_check))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/rename", web::post().to(rename))
+            .route("/subscriptions/confirm", web::get().to(confirm))
             //APP STATE
             //note .data wraps inside of Arc::new()
             // .data(connection.clone())
             //with pg_pool instead of connection we're using app_data, coz we don't want Arc::new(Arc::new()) - app_data doesn't perform an additional layer of wrapping
             .app_data(db_pool.clone())
             .app_data(email_client.clone())
+            .data(ApplicationBaseUrl(base_url.clone()))
     })
     .listen(listener)?
     .run();

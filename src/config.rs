@@ -16,6 +16,7 @@ pub struct AppSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     //normal serde will fail to deserialize numbers into string
     pub port: u16,
+    pub base_url: String,
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]
